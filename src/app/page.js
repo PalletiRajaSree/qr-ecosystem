@@ -45,28 +45,50 @@ export default function Home() {
   };
 
   const loadQrList = async () => {
-    try {
-      setLoadingList(true);
-      setListError("");
-      const { data, error } = await supabase
-        .from("qr_codes")
-        .select("id, name, slug, destination_url, created_at, scan_count, last_scanned_at")
-        .order("created_at", { ascending: false });
+  try {
+    setLoadingList(true);
+    setListError("");
+    const { data, error } = await supabase
+      .from("qr_codes")
+      .select(
+        `
+        id,
+        name,
+        slug,
+        destination_url,
+        created_at,
+        qr_scans (
+          id,
+          scanned_at
+        )
+      `
+      )
+      .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Load list error:", error);
-        setListError(error.message);
-        return;
-      }
-
-      setQrList(data || []);
-    } catch (e) {
-      console.error(e);
-      setListError(e.message);
-    } finally {
-      setLoadingList(false);
+    if (error) {
+      console.error("Load list error:", error);
+      setListError(error.message);
+      return;
     }
-  };
+
+    const withCounts =
+      data?.map((row) => ({
+        ...row,
+        scan_count: row.qr_scans ? row.qr_scans.length : 0,
+        last_scanned_at:
+          row.qr_scans && row.qr_scans.length > 0
+            ? row.qr_scans[row.qr_scans.length - 1].scanned_at
+            : null,
+      })) || [];
+
+    setQrList(withCounts);
+  } catch (e) {
+    console.error(e);
+    setListError(e.message);
+  } finally {
+    setLoadingList(false);
+  }
+};
 
   useEffect(() => {
     loadQrList();

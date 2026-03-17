@@ -9,7 +9,7 @@ export default async function QrRedirectPage(props) {
 
   const { data, error } = await supabase
     .from("qr_codes")
-    .select("id, destination_url, is_active, expires_at, scan_count")
+    .select("id, destination_url, is_active, expires_at")
     .eq("slug", slug)
     .single();
 
@@ -38,17 +38,13 @@ export default async function QrRedirectPage(props) {
     );
   }
 
-  const { error: updateError } = await supabase
-    .from("qr_codes")
-    .update({
-      scan_count: (data.scan_count || 0) + 1,
-      last_scanned_at: new Date().toISOString(),
-    })
-    .eq("id", data.id);
-
-  if (updateError) {
-    console.error("Failed to update analytics:", updateError);
-  }
+  // record one scan in qr_scans table
+  await supabase.from("qr_scans").insert([
+    {
+      qr_id: data.id,
+      scanned_at: new Date().toISOString(),
+    },
+  ]);
 
   redirect(data.destination_url);
 }
