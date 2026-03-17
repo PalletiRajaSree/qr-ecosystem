@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { QRCodeCanvas } from "qrcode.react";
+
 
 export default function Home() {
   const [loadingTest, setLoadingTest] = useState(false);
@@ -10,6 +12,8 @@ export default function Home() {
 
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
+  const [description, setDescription] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
   const [creating, setCreating] = useState(false);
   const [createMessage, setCreateMessage] = useState("");
 
@@ -56,6 +60,8 @@ export default function Home() {
           name,
           slug,
           destination_url,
+          description,
+          logo_url,
           is_active,
           created_at,
           qr_scans (
@@ -120,6 +126,8 @@ export default function Home() {
             name,
             slug,
             destination_url: url,
+            description,
+            logo_url: logoUrl,
             type: "url",
             is_active: true,
           },
@@ -137,6 +145,8 @@ export default function Home() {
       setCreateMessage(`Created QR with slug: ${data.slug}`);
       setName("");
       setUrl("");
+      setDescription("");
+      setLogoUrl("");
       await loadQrList();
     } catch (err) {
       console.error(err);
@@ -202,6 +212,28 @@ export default function Home() {
             />
           </div>
 
+          <div>
+            <label className="block text-sm mb-1">Description (optional)</label>
+            <input
+              type="text"
+              className="w-full rounded-md bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
+              placeholder="Short note about this QR"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm mb-1">Logo URL (optional)</label>
+            <input
+              type="url"
+              className="w-full rounded-md bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
+              placeholder="https://example.com/logo.png"
+              value={logoUrl}
+              onChange={(e) => setLogoUrl(e.target.value)}
+            />
+          </div>
+
           <button
             type="submit"
             disabled={creating}
@@ -239,94 +271,107 @@ export default function Home() {
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm border border-slate-800">
-              <thead className="bg-slate-800">
-                <tr>
-                  <th className="px-3 py-2 border-b border-slate-800 text-left">
-                    Name
-                  </th>
-                  <th className="px-3 py-2 border-b border-slate-800 text-left">
-                    Slug
-                  </th>
-                  <th className="px-3 py-2 border-b border-slate-800 text-left">
-                    Destination URL
-                  </th>
-                  <th className="px-3 py-2 border-b border-slate-800 text-left">
-                    Active
-                  </th>
-                  <th className="px-3 py-2 border-b border-slate-800 text-left">
-                    Toggle
-                  </th>
-                  <th className="px-3 py-2 border-b border-slate-800 text-left">
-                    Created at
-                  </th>
-                  <th className="px-3 py-2 border-b border-slate-800 text-left">
-                    Scans
-                  </th>
-                  <th className="px-3 py-2 border-b border-slate-800 text-left">
-                    Last scanned
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {qrList.map((qr) => (
-                  <tr
-                    key={qr.id}
-                    className="odd:bg-slate-900 even:bg-slate-950"
-                  >
-                    <td className="px-3 py-2 border-b border-slate-800">
-                      {qr.name}
-                    </td>
-                    <td className="px-3 py-2 border-b border-slate-800">
-                      {qr.slug}
-                    </td>
-                    <td className="px-3 py-2 border-b border-slate-800">
-                      {qr.destination_url}
-                    </td>
-                    <td className="px-3 py-2 border-b border-slate-800">
-                      {qr.is_active ? "Yes" : "No"}
-                    </td>
-                    <td className="px-3 py-2 border-b border-slate-800">
-                      <button
-                        onClick={async () => {
-                          try {
-                            const { error } = await supabase
-                              .from("qr_codes")
-                              .update({ is_active: !qr.is_active })
-                              .eq("id", qr.id);
+  <thead className="bg-slate-800">
+    <tr>
+      <th className="px-3 py-2 border-b border-slate-800 text-left">
+        Name
+      </th>
+      <th className="px-3 py-2 border-b border-slate-800 text-left">
+        Description
+      </th>
+      <th className="px-3 py-2 border-b border-slate-800 text-left">
+        Destination URL
+      </th>
+      <th className="px-3 py-2 border-b border-slate-800 text-left">
+        QR Code
+      </th>
+      <th className="px-3 py-2 border-b border-slate-800 text-left">
+        Active
+      </th>
+      <th className="px-3 py-2 border-b border-slate-800 text-left">
+        Toggle
+      </th>
+      <th className="px-3 py-2 border-b border-slate-800 text-left">
+        Created at
+      </th>
+      <th className="px-3 py-2 border-b border-slate-800 text-left">
+        Scans
+      </th>
+      <th className="px-3 py-2 border-b border-slate-800 text-left">
+        Last scanned
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    {qrList.map((qr) => {
+      const qrUrl =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/q/${qr.slug}`
+          : `/q/${qr.slug}`;
 
-                            if (!error) {
-                              await loadQrList();
-                            } else {
-                              console.error("Toggle active error:", error);
-                              alert("Failed to update status");
-                            }
-                          } catch (e) {
-                            console.error(e);
-                            alert("Failed to update status");
-                          }
-                        }}
-                        className="px-2 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700"
-                      >
-                        {qr.is_active ? "Disable" : "Enable"}
-                      </button>
-                    </td>
-                    <td className="px-3 py-2 border-b border-slate-800">
-                      {qr.created_at
-                        ? new Date(qr.created_at).toLocaleString()
-                        : "-"}
-                    </td>
-                    <td className="px-3 py-2 border-b border-slate-800">
-                      {qr.scan_count ?? 0}
-                    </td>
-                    <td className="px-3 py-2 border-b border-slate-800">
-                      {qr.last_scanned_at
-                        ? new Date(qr.last_scanned_at).toLocaleString()
-                        : "-"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      return (
+        <tr key={qr.id} className="odd:bg-slate-900 even:bg-slate-950">
+          <td className="px-3 py-2 border-b border-slate-800">
+            {qr.name}
+          </td>
+          <td className="px-3 py-2 border-b border-slate-800">
+            {qr.description || "-"}
+          </td>
+          <td className="px-3 py-2 border-b border-slate-800">
+            {qr.destination_url}
+          </td>
+          <td className="px-3 py-2 border-b border-slate-800">
+            <div className="bg-white p-1 inline-block rounded">
+              <QRCodeCanvas value={qrUrl} size={64} />
+            </div>
+          </td>
+          <td className="px-3 py-2 border-b border-slate-800">
+            {qr.is_active ? "Yes" : "No"}
+          </td>
+          <td className="px-3 py-2 border-b border-slate-800">
+            <button
+              onClick={async () => {
+                try {
+                  const { error } = await supabase
+                    .from("qr_codes")
+                    .update({ is_active: !qr.is_active })
+                    .eq("id", qr.id);
+
+                  if (!error) {
+                    await loadQrList();
+                  } else {
+                    console.error("Toggle active error:", error);
+                    alert("Failed to update status");
+                  }
+                } catch (e) {
+                  console.error(e);
+                  alert("Failed to update status");
+                }
+              }}
+              className="px-2 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700"
+            >
+              {qr.is_active ? "Disable" : "Enable"}
+            </button>
+          </td>
+          <td className="px-3 py-2 border-b border-slate-800">
+            {qr.created_at
+              ? new Date(qr.created_at).toLocaleString()
+              : "-"}
+          </td>
+          <td className="px-3 py-2 border-b border-slate-800">
+            {qr.scan_count ?? 0}
+          </td>
+          <td className="px-3 py-2 border-b border-slate-800">
+            {qr.last_scanned_at
+              ? new Date(qr.last_scanned_at).toLocaleString()
+              : "-"}
+          </td>
+        </tr>
+      );
+    })}
+  </tbody>
+</table>
+
           </div>
         )}
       </section>
