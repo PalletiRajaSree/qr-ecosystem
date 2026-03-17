@@ -1,65 +1,261 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabaseClient";
 
 export default function Home() {
+  const [loadingTest, setLoadingTest] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const [testError, setTestError] = useState("");
+
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createMessage, setCreateMessage] = useState("");
+
+  const [qrList, setQrList] = useState([]);
+  const [loadingList, setLoadingList] = useState(false);
+  const [listError, setListError] = useState("");
+
+  const testLoadQrCodes = async () => {
+    try {
+      setLoadingTest(true);
+      setTestError("");
+      setTestResult(null);
+
+      const { data, error } = await supabase
+        .from("qr_codes")
+        .select("*")
+        .limit(5);
+
+      if (error) {
+        console.error("Supabase error:", error);
+        setTestError(error.message);
+        return;
+      }
+
+      console.log("QR codes from Supabase (test):", data);
+      setTestResult(data);
+    } catch (e) {
+      console.error(e);
+      setTestError(e.message);
+    } finally {
+      setLoadingTest(false);
+    }
+  };
+
+  const loadQrList = async () => {
+    try {
+      setLoadingList(true);
+      setListError("");
+      const { data, error } = await supabase
+        .from("qr_codes")
+        .select("id, name, slug, destination_url, created_at")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Load list error:", error);
+        setListError(error.message);
+        return;
+      }
+
+      setQrList(data || []);
+    } catch (e) {
+      console.error(e);
+      setListError(e.message);
+    } finally {
+      setLoadingList(false);
+    }
+  };
+
+  useEffect(() => {
+    loadQrList();
+  }, []);
+
+  const handleCreateQr = async (e) => {
+    e.preventDefault();
+    setCreateMessage("");
+
+    if (!name || !url) {
+      setCreateMessage("Please enter both name and destination URL.");
+      return;
+    }
+
+    try {
+      setCreating(true);
+
+      const randomPart = Math.random().toString(36).substring(2, 8);
+      const slug =
+        name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") +
+        "-" +
+        randomPart;
+
+      const { data, error } = await supabase
+        .from("qr_codes")
+        .insert([
+          {
+            name,
+            slug,
+            destination_url: url,
+            type: "url",
+            is_active: true,
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Create QR error:", error);
+        setCreateMessage(`Error: ${error.message}`);
+        return;
+      }
+
+      console.log("Created QR:", data);
+      setCreateMessage(`Created QR with slug: ${data.slug}`);
+      setName("");
+      setUrl("");
+      await loadQrList();
+    } catch (err) {
+      console.error(err);
+      setCreateMessage(`Error: ${err.message}`);
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.js file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <main className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center py-10 px-4">
+      <h1 className="text-3xl md:text-4xl font-semibold mb-2 text-center">
+        QR Nexus — Smart QR Ecosystem
+      </h1>
+      <p className="text-slate-300 max-w-xl text-center mb-6">
+        RT-4: Advanced Smart QR Code Ecosystem Platform.
+      </p>
+
+      <section className="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-lg p-4 mb-6">
+        <h2 className="font-semibold mb-2 text-lg">1. Test Supabase connection</h2>
+        <button
+          onClick={testLoadQrCodes}
+          disabled={loadingTest}
+          className="px-4 py-2 rounded-md bg-emerald-500 hover:bg-emerald-600 text-sm font-medium disabled:opacity-60"
+        >
+          {loadingTest ? "Testing..." : "Load first 5 qr_codes"}
+        </button>
+
+        {testError && (
+          <p className="text-red-400 mt-3 text-sm">Error: {testError}</p>
+        )}
+
+        {testResult && (
+          <pre className="mt-3 max-w-full text-xs bg-slate-950 p-3 rounded border border-slate-800 overflow-x-auto">
+{JSON.stringify(testResult, null, 2)}
+          </pre>
+        )}
+      </section>
+
+      <section className="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-lg p-4 mb-6">
+        <h2 className="font-semibold mb-3 text-lg">2. Create a QR record</h2>
+
+        <form onSubmit={handleCreateQr} className="space-y-3">
+          <div>
+            <label className="block text-sm mb-1">QR Name</label>
+            <input
+              type="text"
+              className="w-full rounded-md bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
+              placeholder="Cafe Menu - Table 1"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </div>
+
+          <div>
+            <label className="block text-sm mb-1">Destination URL</label>
+            <input
+              type="url"
+              className="w-full rounded-md bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
+              placeholder="https://example.com/menu"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={creating}
+            className="px-4 py-2 rounded-md bg-indigo-500 hover:bg-indigo-600 text-sm font-medium disabled:opacity-60"
           >
-            Documentation
-          </a>
+            {creating ? "Creating..." : "Create QR"}
+          </button>
+        </form>
+
+        {createMessage && (
+          <p className="mt-3 text-sm text-slate-300">{createMessage}</p>
+        )}
+      </section>
+
+      <section className="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold text-lg">3. Your QR codes</h2>
+          <button
+            onClick={loadQrList}
+            disabled={loadingList}
+            className="px-3 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-medium disabled:opacity-60"
+          >
+            {loadingList ? "Refreshing..." : "Refresh list"}
+          </button>
         </div>
-      </main>
-    </div>
+
+        {listError && (
+          <p className="text-red-400 mb-2 text-sm">Error: {listError}</p>
+        )}
+
+        {qrList.length === 0 ? (
+          <p className="text-slate-400 text-sm">
+            No QR codes yet. Create one above.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm border border-slate-800">
+              <thead className="bg-slate-800">
+                <tr>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Name
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Slug
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Destination URL
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Created at
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {qrList.map((qr) => (
+                  <tr key={qr.id} className="odd:bg-slate-900 even:bg-slate-950">
+                    <td className="px-3 py-2 border-b border-slate-800">
+                      {qr.name}
+                    </td>
+                    <td className="px-3 py-2 border-b border-slate-800">
+                      {qr.slug}
+                    </td>
+                    <td className="px-3 py-2 border-b border-slate-800">
+                      {qr.destination_url}
+                    </td>
+                    <td className="px-3 py-2 border-b border-slate-800">
+                      {qr.created_at
+                        ? new Date(qr.created_at).toLocaleString()
+                        : "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </main>
   );
 }
