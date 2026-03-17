@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { QRCodeCanvas } from "qrcode.react";
 
-
 export default function Home() {
   const [loadingTest, setLoadingTest] = useState(false);
   const [testResult, setTestResult] = useState(null);
@@ -271,107 +270,106 @@ export default function Home() {
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm border border-slate-800">
-  <thead className="bg-slate-800">
-    <tr>
-      <th className="px-3 py-2 border-b border-slate-800 text-left">
-        Name
-      </th>
-      <th className="px-3 py-2 border-b border-slate-800 text-left">
-        Description
-      </th>
-      <th className="px-3 py-2 border-b border-slate-800 text-left">
-        Destination URL
-      </th>
-      <th className="px-3 py-2 border-b border-slate-800 text-left">
-        QR Code
-      </th>
-      <th className="px-3 py-2 border-b border-slate-800 text-left">
-        Active
-      </th>
-      <th className="px-3 py-2 border-b border-slate-800 text-left">
-        Toggle
-      </th>
-      <th className="px-3 py-2 border-b border-slate-800 text-left">
-        Created at
-      </th>
-      <th className="px-3 py-2 border-b border-slate-800 text-left">
-        Scans
-      </th>
-      <th className="px-3 py-2 border-b border-slate-800 text-left">
-        Last scanned
-      </th>
-    </tr>
-  </thead>
-  <tbody>
-    {qrList.map((qr) => {
-      const qrUrl =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/q/${qr.slug}`
-          : `/q/${qr.slug}`;
+              <thead className="bg-slate-800">
+                <tr>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Name
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Description
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Destination URL
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    QR Code
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Active
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Toggle
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Created at
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Scans
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Last scanned
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {qrList.map((qr) => {
+                  const qrUrl = `https://qr-ecosystem-kfmxod9uz-palletirajasrees-projects.vercel.app/q/${qr.slug}`;
 
-      return (
-        <tr key={qr.id} className="odd:bg-slate-900 even:bg-slate-950">
-          <td className="px-3 py-2 border-b border-slate-800">
-            {qr.name}
-          </td>
-          <td className="px-3 py-2 border-b border-slate-800">
-            {qr.description || "-"}
-          </td>
-          <td className="px-3 py-2 border-b border-slate-800">
-            {qr.destination_url}
-          </td>
-          <td className="px-3 py-2 border-b border-slate-800">
-            <div className="bg-white p-1 inline-block rounded">
-              <QRCodeCanvas value={qrUrl} size={64} />
-            </div>
-          </td>
-          <td className="px-3 py-2 border-b border-slate-800">
-            {qr.is_active ? "Yes" : "No"}
-          </td>
-          <td className="px-3 py-2 border-b border-slate-800">
-            <button
-              onClick={async () => {
-                try {
-                  const { error } = await supabase
-                    .from("qr_codes")
-                    .update({ is_active: !qr.is_active })
-                    .eq("id", qr.id);
+                  return (
+                    <tr
+                      key={qr.id}
+                      className="odd:bg-slate-900 even:bg-slate-950"
+                    >
+                      <td className="px-3 py-2 border-b border-slate-800">
+                        {qr.name}
+                      </td>
+                      <td className="px-3 py-2 border-b border-slate-800">
+                        {qr.description || "-"}
+                      </td>
+                      <td className="px-3 py-2 border-b border-slate-800">
+                        {qr.destination_url}
+                      </td>
+                      <td className="px-3 py-2 border-b border-slate-800">
+                        <div className="bg-white p-1 inline-block rounded">
+                          <QRCodeCanvas value={qrUrl} size={64} />
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 border-b border-slate-800">
+                        {qr.is_active ? "Yes" : "No"}
+                      </td>
+                      <td className="px-3 py-2 border-b border-slate-800">
+                        <button
+                          onClick={async () => {
+                            try {
+                              const { error } = await supabase
+                                .from("qr_codes")
+                                .update({ is_active: !qr.is_active })
+                                .eq("id", qr.id);
 
-                  if (!error) {
-                    await loadQrList();
-                  } else {
-                    console.error("Toggle active error:", error);
-                    alert("Failed to update status");
-                  }
-                } catch (e) {
-                  console.error(e);
-                  alert("Failed to update status");
-                }
-              }}
-              className="px-2 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700"
-            >
-              {qr.is_active ? "Disable" : "Enable"}
-            </button>
-          </td>
-          <td className="px-3 py-2 border-b border-slate-800">
-            {qr.created_at
-              ? new Date(qr.created_at).toLocaleString()
-              : "-"}
-          </td>
-          <td className="px-3 py-2 border-b border-slate-800">
-            {qr.scan_count ?? 0}
-          </td>
-          <td className="px-3 py-2 border-b border-slate-800">
-            {qr.last_scanned_at
-              ? new Date(qr.last_scanned_at).toLocaleString()
-              : "-"}
-          </td>
-        </tr>
-      );
-    })}
-  </tbody>
-</table>
-
+                              if (!error) {
+                                await loadQrList();
+                              } else {
+                                console.error("Toggle active error:", error);
+                                alert("Failed to update status");
+                              }
+                            } catch (e) {
+                              console.error(e);
+                              alert("Failed to update status");
+                            }
+                          }}
+                          className="px-2 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700"
+                        >
+                          {qr.is_active ? "Disable" : "Enable"}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2 border-b border-slate-800">
+                        {qr.created_at
+                          ? new Date(qr.created_at).toLocaleString()
+                          : "-"}
+                      </td>
+                      <td className="px-3 py-2 border-b border-slate-800">
+                        {qr.scan_count ?? 0}
+                      </td>
+                      <td className="px-3 py-2 border-b border-slate-800">
+                        {qr.last_scanned_at
+                          ? new Date(qr.last_scanned_at).toLocaleString()
+                          : "-"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </section>
