@@ -50,7 +50,7 @@ export default function Home() {
       setListError("");
       const { data, error } = await supabase
         .from("qr_codes")
-        .select("id, name, slug, destination_url, created_at")
+        .select("id, name, slug, destination_url, created_at, scan_count, last_scanned_at")
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -216,43 +216,58 @@ export default function Home() {
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm border border-slate-800">
-              <thead className="bg-slate-800">
-                <tr>
-                  <th className="px-3 py-2 border-b border-slate-800 text-left">
-                    Name
-                  </th>
-                  <th className="px-3 py-2 border-b border-slate-800 text-left">
-                    Slug
-                  </th>
-                  <th className="px-3 py-2 border-b border-slate-800 text-left">
-                    Destination URL
-                  </th>
-                  <th className="px-3 py-2 border-b border-slate-800 text-left">
-                    Created at
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {qrList.map((qr) => (
-                  <tr key={qr.id} className="odd:bg-slate-900 even:bg-slate-950">
-                    <td className="px-3 py-2 border-b border-slate-800">
-                      {qr.name}
-                    </td>
-                    <td className="px-3 py-2 border-b border-slate-800">
-                      {qr.slug}
-                    </td>
-                    <td className="px-3 py-2 border-b border-slate-800">
-                      {qr.destination_url}
-                    </td>
-                    <td className="px-3 py-2 border-b border-slate-800">
-                      {qr.created_at
-                        ? new Date(qr.created_at).toLocaleString()
-                        : "-"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+  <thead className="bg-slate-800">
+    <tr>
+      <th className="px-3 py-2 border-b border-slate-800 text-left">
+        Name
+      </th>
+      <th className="px-3 py-2 border-b border-slate-800 text-left">
+        Slug
+      </th>
+      <th className="px-3 py-2 border-b border-slate-800 text-left">
+        Destination URL
+      </th>
+      <th className="px-3 py-2 border-b border-slate-800 text-left">
+        Created at
+      </th>
+      <th className="px-3 py-2 border-b border-slate-800 text-left">
+        Scans
+      </th>
+      <th className="px-3 py-2 border-b border-slate-800 text-left">
+        Last scanned
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    {qrList.map((qr) => (
+      <tr key={qr.id} className="odd:bg-slate-900 even:bg-slate-950">
+        <td className="px-3 py-2 border-b border-slate-800">
+          {qr.name}
+        </td>
+        <td className="px-3 py-2 border-b border-slate-800">
+          {qr.slug}
+        </td>
+        <td className="px-3 py-2 border-b border-slate-800">
+          {qr.destination_url}
+        </td>
+        <td className="px-3 py-2 border-b border-slate-800">
+          {qr.created_at
+            ? new Date(qr.created_at).toLocaleString()
+            : "-"}
+        </td>
+        <td className="px-3 py-2 border-b border-slate-800">
+          {qr.scan_count ?? 0}
+        </td>
+        <td className="px-3 py-2 border-b border-slate-800">
+          {qr.last_scanned_at
+            ? new Date(qr.last_scanned_at).toLocaleString()
+            : "-"}
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+
           </div>
         )}
       </section>
