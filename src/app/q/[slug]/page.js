@@ -38,7 +38,6 @@ export default async function QrRedirectPage(props) {
     );
   }
 
-  // record one scan in qr_scans table
   await supabase.from("qr_scans").insert([
     {
       qr_id: data.id,

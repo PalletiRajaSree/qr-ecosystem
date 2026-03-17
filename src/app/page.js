@@ -45,50 +45,51 @@ export default function Home() {
   };
 
   const loadQrList = async () => {
-  try {
-    setLoadingList(true);
-    setListError("");
-    const { data, error } = await supabase
-      .from("qr_codes")
-      .select(
-        `
-        id,
-        name,
-        slug,
-        destination_url,
-        created_at,
-        qr_scans (
+    try {
+      setLoadingList(true);
+      setListError("");
+      const { data, error } = await supabase
+        .from("qr_codes")
+        .select(
+          `
           id,
-          scanned_at
+          name,
+          slug,
+          destination_url,
+          is_active,
+          created_at,
+          qr_scans (
+            id,
+            scanned_at
+          )
+        `
         )
-      `
-      )
-      .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Load list error:", error);
-      setListError(error.message);
-      return;
+      if (error) {
+        console.error("Load list error:", error);
+        setListError(error.message);
+        return;
+      }
+
+      const withCounts =
+        data?.map((row) => ({
+          ...row,
+          scan_count: row.qr_scans ? row.qr_scans.length : 0,
+          last_scanned_at:
+            row.qr_scans && row.qr_scans.length > 0
+              ? row.qr_scans[row.qr_scans.length - 1].scanned_at
+              : null,
+        })) || [];
+
+      setQrList(withCounts);
+    } catch (e) {
+      console.error(e);
+      setListError(e.message);
+    } finally {
+      setLoadingList(false);
     }
-
-    const withCounts =
-      data?.map((row) => ({
-        ...row,
-        scan_count: row.qr_scans ? row.qr_scans.length : 0,
-        last_scanned_at:
-          row.qr_scans && row.qr_scans.length > 0
-            ? row.qr_scans[row.qr_scans.length - 1].scanned_at
-            : null,
-      })) || [];
-
-    setQrList(withCounts);
-  } catch (e) {
-    console.error(e);
-    setListError(e.message);
-  } finally {
-    setLoadingList(false);
-  }
-};
+  };
 
   useEffect(() => {
     loadQrList();
@@ -170,7 +171,7 @@ export default function Home() {
 
         {testResult && (
           <pre className="mt-3 max-w-full text-xs bg-slate-950 p-3 rounded border border-slate-800 overflow-x-auto">
-{JSON.stringify(testResult, null, 2)}
+            {JSON.stringify(testResult, null, 2)}
           </pre>
         )}
       </section>
@@ -238,58 +239,94 @@ export default function Home() {
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm border border-slate-800">
-  <thead className="bg-slate-800">
-    <tr>
-      <th className="px-3 py-2 border-b border-slate-800 text-left">
-        Name
-      </th>
-      <th className="px-3 py-2 border-b border-slate-800 text-left">
-        Slug
-      </th>
-      <th className="px-3 py-2 border-b border-slate-800 text-left">
-        Destination URL
-      </th>
-      <th className="px-3 py-2 border-b border-slate-800 text-left">
-        Created at
-      </th>
-      <th className="px-3 py-2 border-b border-slate-800 text-left">
-        Scans
-      </th>
-      <th className="px-3 py-2 border-b border-slate-800 text-left">
-        Last scanned
-      </th>
-    </tr>
-  </thead>
-  <tbody>
-    {qrList.map((qr) => (
-      <tr key={qr.id} className="odd:bg-slate-900 even:bg-slate-950">
-        <td className="px-3 py-2 border-b border-slate-800">
-          {qr.name}
-        </td>
-        <td className="px-3 py-2 border-b border-slate-800">
-          {qr.slug}
-        </td>
-        <td className="px-3 py-2 border-b border-slate-800">
-          {qr.destination_url}
-        </td>
-        <td className="px-3 py-2 border-b border-slate-800">
-          {qr.created_at
-            ? new Date(qr.created_at).toLocaleString()
-            : "-"}
-        </td>
-        <td className="px-3 py-2 border-b border-slate-800">
-          {qr.scan_count ?? 0}
-        </td>
-        <td className="px-3 py-2 border-b border-slate-800">
-          {qr.last_scanned_at
-            ? new Date(qr.last_scanned_at).toLocaleString()
-            : "-"}
-        </td>
-      </tr>
-    ))}
-  </tbody>
-</table>
+              <thead className="bg-slate-800">
+                <tr>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Name
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Slug
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Destination URL
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Active
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Toggle
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Created at
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Scans
+                  </th>
+                  <th className="px-3 py-2 border-b border-slate-800 text-left">
+                    Last scanned
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {qrList.map((qr) => (
+                  <tr
+                    key={qr.id}
+                    className="odd:bg-slate-900 even:bg-slate-950"
+                  >
+                    <td className="px-3 py-2 border-b border-slate-800">
+                      {qr.name}
+                    </td>
+                    <td className="px-3 py-2 border-b border-slate-800">
+                      {qr.slug}
+                    </td>
+                    <td className="px-3 py-2 border-b border-slate-800">
+                      {qr.destination_url}
+                    </td>
+                    <td className="px-3 py-2 border-b border-slate-800">
+                      {qr.is_active ? "Yes" : "No"}
+                    </td>
+                    <td className="px-3 py-2 border-b border-slate-800">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const { error } = await supabase
+                              .from("qr_codes")
+                              .update({ is_active: !qr.is_active })
+                              .eq("id", qr.id);
 
+                            if (!error) {
+                              await loadQrList();
+                            } else {
+                              console.error("Toggle active error:", error);
+                              alert("Failed to update status");
+                            }
+                          } catch (e) {
+                            console.error(e);
+                            alert("Failed to update status");
+                          }
+                        }}
+                        className="px-2 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700"
+                      >
+                        {qr.is_active ? "Disable" : "Enable"}
+                      </button>
+                    </td>
+                    <td className="px-3 py-2 border-b border-slate-800">
+                      {qr.created_at
+                        ? new Date(qr.created_at).toLocaleString()
+                        : "-"}
+                    </td>
+                    <td className="px-3 py-2 border-b border-slate-800">
+                      {qr.scan_count ?? 0}
+                    </td>
+                    <td className="px-3 py-2 border-b border-slate-800">
+                      {qr.last_scanned_at
+                        ? new Date(qr.last_scanned_at).toLocaleString()
+                        : "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </section>
