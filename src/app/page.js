@@ -23,6 +23,11 @@ export default function Home() {
   const [loadingList, setLoadingList] = useState(false);
   const [listError, setListError] = useState("");
 
+  // Analytics state
+  const [totalScans, setTotalScans] = useState(0);
+  const [totalActiveQrs, setTotalActiveQrs] = useState(0);
+  const [topQr, setTopQr] = useState(null);
+
   useEffect(() => {
     const init = async () => {
       const {
@@ -35,6 +40,7 @@ export default function Home() {
         return;
       }
       await loadQrList(user);
+      await loadAnalytics(user);
     };
     init();
   }, []);
@@ -129,6 +135,45 @@ export default function Home() {
     }
   };
 
+  const loadAnalytics = async (currentUser) => {
+    const userToUse = currentUser || user;
+    if (!userToUse) return;
+
+    // 1) Total active QRs for this user
+    const { error: activeError, count: activeCount } = await supabase
+      .from("qr_codes")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userToUse.id)
+      .eq("is_active", true);
+
+    if (!activeError && typeof activeCount === "number") {
+      setTotalActiveQrs(activeCount);
+    }
+
+    // 2) Total scans for this user's QRs (join qr_scans -> qr_codes)
+    const { error: scansError, count: scansCount } = await supabase
+      .from("qr_scans")
+      .select("id, qr_codes!inner(user_id)", { count: "exact" })
+      .eq("qr_codes.user_id", userToUse.id);
+
+    if (!scansError && typeof scansCount === "number") {
+      setTotalScans(scansCount);
+    }
+
+    // 3) Top performing QR (by scan_count, using qrList)
+    if (qrList && qrList.length > 0) {
+      let best = qrList[0];
+      for (const item of qrList) {
+        if ((item.scan_count || 0) > (best.scan_count || 0)) {
+          best = item;
+        }
+      }
+      setTopQr(best);
+    } else {
+      setTopQr(null);
+    }
+  };
+
   const handleCreateQr = async (e) => {
     e.preventDefault();
     setCreateMessage("");
@@ -188,6 +233,7 @@ export default function Home() {
       setDescription("");
       setLogoUrl("");
       await loadQrList(user);
+      await loadAnalytics(user);
     } catch (err) {
       console.error(err);
       setCreateMessage(`Error: ${err.message}`);
@@ -206,6 +252,7 @@ export default function Home() {
 
       if (!error) {
         await loadQrList(user);
+        await loadAnalytics(user);
       } else {
         console.error("Toggle active error:", error);
         alert("Failed to update status");
@@ -255,6 +302,35 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Analytics Overview */}
+      <section className="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-lg p-4 mb-6">
+        <h2 className="font-semibold mb-3 text-lg">0. Analytics Overview</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div className="bg-slate-950 border border-slate-800 rounded-md p-3">
+            <p className="text-xs text-slate-400">Total Scans</p>
+            <p className="text-2xl font-semibold">{totalScans}</p>
+          </div>
+          <div className="bg-slate-950 border border-slate-800 rounded-md p-3">
+            <p className="text-xs text-slate-400">Active QR Codes</p>
+            <p className="text-2xl font-semibold">{totalActiveQrs}</p>
+          </div>
+          <div className="bg-slate-950 border border-slate-800 rounded-md p-3">
+            <p className="text-xs text-slate-400">Top Performing QR</p>
+            {topQr ? (
+              <>
+                <p className="font-semibold truncate">{topQr.name}</p>
+                <p className="text-xs text-slate-400">
+                  {topQr.scan_count} scans
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-slate-500">No scans yet</p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Test connection */}
       <section className="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-lg p-4 mb-6">
         <h2 className="font-semibold mb-2 text-lg">1. Test Supabase connection</h2>
         <button
@@ -276,6 +352,7 @@ export default function Home() {
         )}
       </section>
 
+      {/* Create QR */}
       <section className="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-lg p-4 mb-6">
         <h2 className="font-semibold mb-3 text-lg">2. Create a QR record</h2>
 
@@ -338,11 +415,15 @@ export default function Home() {
         )}
       </section>
 
+      {/* QR list */}
       <section className="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-lg">3. Your QR codes</h2>
           <button
-            onClick={() => loadQrList()}
+            onClick={async () => {
+              await loadQrList();
+              await loadAnalytics();
+            }}
             disabled={loadingList}
             className="px-3 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-medium disabled:opacity-60"
           >
