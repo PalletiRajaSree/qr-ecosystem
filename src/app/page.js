@@ -5,6 +5,9 @@ import { supabase } from "../lib/supabaseClient";
 import { QRCodeCanvas } from "qrcode.react";
 
 export default function Home() {
+  const [authChecked, setAuthChecked] = useState(false);
+  const [user, setUser] = useState(null);
+
   const [loadingTest, setLoadingTest] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [testError, setTestError] = useState("");
@@ -20,15 +23,41 @@ export default function Home() {
   const [loadingList, setLoadingList] = useState(false);
   const [listError, setListError] = useState("");
 
+  // 1) Check auth on mount
+  useEffect(() => {
+    const init = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setUser(user);
+      setAuthChecked(true);
+      if (!user) {
+        window.location.href = "/auth";
+        return;
+      }
+      await loadQrList(user);
+    };
+    init();
+  }, []);
+
   const testLoadQrCodes = async () => {
     try {
       setLoadingTest(true);
       setTestError("");
       setTestResult(null);
 
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setTestError("Not logged in.");
+        return;
+      }
+
       const { data, error } = await supabase
         .from("qr_codes")
         .select("*")
+        .eq("user_id", user.id)
         .limit(5);
 
       if (error) {
@@ -47,10 +76,14 @@ export default function Home() {
     }
   };
 
-  const loadQrList = async () => {
+  const loadQrList = async (currentUser) => {
     try {
       setLoadingList(true);
       setListError("");
+
+      const userToUse = currentUser || user;
+      if (!userToUse) return;
+
       const { data, error } = await supabase
         .from("qr_codes")
         .select(
@@ -69,6 +102,7 @@ export default function Home() {
           )
         `
         )
+        .eq("user_id", userToUse.id)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -96,10 +130,6 @@ export default function Home() {
     }
   };
 
-  useEffect(() => {
-    loadQrList();
-  }, []);
-
   const handleCreateQr = async (e) => {
     e.preventDefault();
     setCreateMessage("");
@@ -109,12 +139,23 @@ export default function Home() {
       return;
     }
 
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      window.location.href = "/auth";
+      return;
+    }
+
     try {
       setCreating(true);
 
       const randomPart = Math.random().toString(36).substring(2, 8);
       const slug =
-        name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") +
+        name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "") +
         "-" +
         randomPart;
 
@@ -129,6 +170,7 @@ export default function Home() {
             logo_url: logoUrl,
             type: "url",
             is_active: true,
+            user_id: user.id,
           },
         ])
         .select()
@@ -146,7 +188,7 @@ export default function Home() {
       setUrl("");
       setDescription("");
       setLogoUrl("");
-      await loadQrList();
+      await loadQrList(user);
     } catch (err) {
       console.error(err);
       setCreateMessage(`Error: ${err.message}`);
@@ -155,14 +197,64 @@ export default function Home() {
     }
   };
 
+  const handleToggleActive = async (qr) => {
+    try {
+      const { error } = await supabase
+        .from("qr_codes")
+        .update({ is_active: !qr.is_active })
+        .eq("id", qr.id)
+        .eq("user_id", user.id);
+
+      if (!error) {
+        await loadQrList(user);
+      } else {
+        console.error("Toggle active error:", error);
+        alert("Failed to update status");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to update status");
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/auth";
+  };
+
+  if (!authChecked) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-50">
+        <p>Checking authentication...</p>
+      </main>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center py-10 px-4">
-      <h1 className="text-3xl md:text-4xl font-semibold mb-2 text-center">
-        QR Nexus — Smart QR Ecosystem
-      </h1>
-      <p className="text-slate-300 max-w-xl text-center mb-6">
-        RT-4: Advanced Smart QR Code Ecosystem Platform.
-      </p>
+      <header className="w-full max-w-5xl flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-semibold mb-1">
+            QR Nexus — Smart QR Ecosystem
+          </h1>
+          <p className="text-slate-300 text-sm">
+            RT-4: Advanced Smart QR Code Ecosystem Platform.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 text-xs">
+          <span className="text-slate-400">{user.email}</span>
+          <button
+            onClick={handleLogout}
+            className="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700"
+          >
+            Logout
+          </button>
+        </div>
+      </header>
 
       <section className="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-lg p-4 mb-6">
         <h2 className="font-semibold mb-2 text-lg">1. Test Supabase connection</h2>
@@ -171,7 +263,7 @@ export default function Home() {
           disabled={loadingTest}
           className="px-4 py-2 rounded-md bg-emerald-500 hover:bg-emerald-600 text-sm font-medium disabled:opacity-60"
         >
-          {loadingTest ? "Testing..." : "Load first 5 qr_codes"}
+          {loadingTest ? "Testing..." : "Load first 5 qr_codes (yours)"}
         </button>
 
         {testError && (
@@ -251,7 +343,7 @@ export default function Home() {
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-lg">3. Your QR codes</h2>
           <button
-            onClick={loadQrList}
+            onClick={() => loadQrList()}
             disabled={loadingList}
             className="px-3 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-medium disabled:opacity-60"
           >
@@ -329,24 +421,7 @@ export default function Home() {
                       </td>
                       <td className="px-3 py-2 border-b border-slate-800">
                         <button
-                          onClick={async () => {
-                            try {
-                              const { error } = await supabase
-                                .from("qr_codes")
-                                .update({ is_active: !qr.is_active })
-                                .eq("id", qr.id);
-
-                              if (!error) {
-                                await loadQrList();
-                              } else {
-                                console.error("Toggle active error:", error);
-                                alert("Failed to update status");
-                              }
-                            } catch (e) {
-                              console.error(e);
-                              alert("Failed to update status");
-                            }
-                          }}
+                          onClick={() => handleToggleActive(qr)}
                           className="px-2 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700"
                         >
                           {qr.is_active ? "Disable" : "Enable"}
