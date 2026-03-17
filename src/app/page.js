@@ -23,7 +23,6 @@ export default function Home() {
   const [loadingList, setLoadingList] = useState(false);
   const [listError, setListError] = useState("");
 
-  // 1) Check auth on mount
   useEffect(() => {
     const init = async () => {
       const {
